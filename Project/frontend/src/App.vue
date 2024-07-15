@@ -1,10 +1,36 @@
 <template>
-  <nav>
-    <router-link to="/">Home</router-link> |
-    <router-link to="/about">About</router-link>
-  </nav>
-  <router-view/>
+  <div id="app">
+      <template v-if="isAuthenticated">
+        <template v-if="userRole === 'admin'">
+          <router-link to="/admin-dashboard"> Admin Dashboard</router-link>
+        </template>
+        <template v-if="userRole === 'user'">
+          <router-link to="/user-dashboard"> User Dashboard</router-link>
+        </template>
+        <button @click="logout">Logout</button>
+      </template>
+      <template v-if ='!isAuthenticated'>
+        <router-link to="/login">Login</router-link>
+        <router-link to="/signup">Singup</router-link>
+      </template>
+      <router-view/>
+  </div>
+  
 </template>
+
+<script>
+import {mapGetters,mapActions} from 'vuex';
+
+export default{
+  name:'App',
+  computed:{
+    ...mapGetters(['isAuthenticated','userRole'])
+  },
+  methods:{
+    ...mapActions(['logout'])
+  }
+}
+</script>
 
 <style>
 #app {

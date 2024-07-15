@@ -45,16 +45,28 @@ class LoginResource(Resource):
         parser.add_argument('username',type=str,required=True)
         parser.add_argument('password',type=str,required=True)
         args= parser.parse_args()
-
-        user = User.query.filter_by(username=args['username'])
+        
+        user = User.query.filter_by(username=args['username']).first()
         if user and check_password_hash(user.password,args['password']):
             access_token = create_access_token(identity=user.role)
             user_info={"id":user.id,
-                       "username":user.username}
-            return {'access_token':access_token,"user":user_info},200
+                       "username":user.username,
+                       'role':user.role}
+            return {'access_token':access_token,"user":user_info}, 200
         else:
             return {'message':'invalid username or password'},401
 
+class UserInfo(Resource):
+    def get(self):
+        users = User.query.all()
+        user_info = [{
+            "id":user.id,
+            "username":user.username,
+            "role":user.role
+        } for user in users]
+        return user_info
+
+api.add_resource(UserInfo,'/api/userinfo')
 api.add_resource(SignupResource,'/api/signup')
 api.add_resource(LoginResource,'/api/login')
 
