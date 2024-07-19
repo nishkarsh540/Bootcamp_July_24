@@ -50,7 +50,7 @@ export default {
           this.$router.push('/user-dashboard');
         }
       } catch (error) {
-        this.errorMessage = 'Invalid Username or Password';
+        this.errorMessage = error.response ? error.response.data.message:'Invalid Username or Password';
       }
     }
   }

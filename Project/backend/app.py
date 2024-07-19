@@ -3,7 +3,7 @@ from flask_restful import Api, Resource,reqparse
 from flask_jwt_extended import JWTManager,create_access_token,jwt_required,get_jwt_identity
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash,check_password_hash
-from model import db,User
+from model import db,User,Category,Product
 
 app =Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///grocery.db'
@@ -31,8 +31,10 @@ class SignupResource(Resource):
             return{"message":"username already exists"},400
         
         hashed_password = generate_password_hash(args['password'])
-
-        new_user = User(username=args['username'],email=args['email'],password = hashed_password,role=args['role'])
+        if args['role'] == 'store-manager':
+            new_user = User(username=args['username'],email=args['email'],password = hashed_password,role=args['role'],approved=False)
+        else:
+            new_user = User(username=args['username'],email=args['email'],password = hashed_password,role=args['role'],approved=True)
 
         db.session.add(new_user)
         db.session.commit()
@@ -48,6 +50,8 @@ class LoginResource(Resource):
         
         user = User.query.filter_by(username=args['username']).first()
         if user and check_password_hash(user.password,args['password']):
+            if user.approved == False:
+                return {'message':'please wait for approval from the admin'},401
             access_token = create_access_token(identity=user.role)
             user_info={"id":user.id,
                        "username":user.username,
@@ -66,6 +70,106 @@ class UserInfo(Resource):
         } for user in users]
         return user_info
 
+class CategoryResource(Resource):
+    @jwt_required()
+    def get(self):
+        categories =Category.query.all()
+        return jsonify([{
+            'id':category.id,
+            'name':category.name
+        } for category in categories])
+
+    def post(self):
+        parser= reqparse.RequestParser()
+        parser.add_argument('name',type=str,required=True)
+        args=parser.parse_args()
+
+        if Category.query.filter_by(name=args['name']).first():
+            return {'message':'category already exists'},400
+        new_category = Category(name=args['name'])
+        db.session.add(new_category)
+        db.session.commit()
+
+    def put(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('id',type=int,required=True)
+        parser.add_argument('name',type=str,required=True)
+        args=parser.parse_args()
+
+        category = Category.query.get(args['id'])
+        if not category:
+            return {'message':'category not found'},404
+        
+        category.name = args['name']
+        db.session.commit()
+        return {'message':'category updated successfully'},200
+    
+    def delete(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('id',type=int,required=True)
+        args=parser.parse_args()
+
+        category = Category.query.get(args['id'])
+        if not category:
+            return {'message':'category not found'},404
+        
+        db.session.delete(category)
+        db.session.commit()
+        return {'message':'category deleted successfully'},200
+
+class ProductResource(Resource):
+    def get(self):
+        categories = Category.query.all()
+        categories_data = [{'id':category.id,'name':category.name}for category in categories]
+
+        products = Product.query.all()
+        products_data =[{
+            'id':product.id,
+            'name':product.name,
+            'category_id':product.category_id,
+            'expiry_date':product.expiry_date
+        } for product in products]
+
+        return jsonify({
+            'categories':categories_data,
+                        'products':products_data})
+
+
+class PendingManager(Resource):
+    def get(self):
+        pending_managers=User.query.filter_by(approved=False,role='store-manager').all()
+        pending_managers_data = []
+        for manager in pending_managers:
+            manager_data = {
+                'id':manager.id,
+                'name':manager.username,
+                'email':manager.email,
+            }
+            pending_managers_data.append(manager_data)
+        return jsonify(pending_managers_data)
+    
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('manager_id',type=str,required=True)
+        parser.add_argument('status',type=str,required=True)
+        args= parser.parse_args()
+
+        user = User.query.get(args['manager_id'])
+
+        if not user:
+            return {'message':'User not found'},404
+        
+        if args['status'] == 'approve':
+            user.approved=True
+        else:
+            db.session.delete(user)
+        db.session.commit()
+
+        return {'message':'task completed succesffully'},200
+
+
+api.add_resource(PendingManager,'/api/managers')
+api.add_resource(CategoryResource,'/api/category')
 api.add_resource(UserInfo,'/api/userinfo')
 api.add_resource(SignupResource,'/api/signup')
 api.add_resource(LoginResource,'/api/login')
