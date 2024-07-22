@@ -2,13 +2,20 @@
     <div class="category-managment">
         <h2>category-managment</h2>
 
+        <input 
+            type="text"
+            v-model="searchQuery"
+            placeholder="Search Categories"
+            @input="filterCategories"
+            />
+
         <form @submit.prevent="addCategory">
             <input type="text" v-model="newCategoryName" placeholder="Enter category name" required>
             <button type="submit">Add Category</button>
         </form>
 
 
-        <table v-if="categories.length>0">
+        <table v-if="filteredCategories.length>0">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -17,7 +24,7 @@
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="category in categories" :key='category.id'>
+                <tr v-for="category in filteredCategories" :key='category.id'>
                     <td>{{ category.id }}</td>
                     <td>
                         <input type="text" v-model="category.name" :disabled="category.id !== editingCategoryId">
@@ -47,6 +54,7 @@ export default{
         categories:[],
         newCategoryName:'',
         editingCategoryId:null,
+        filteredCategories:[]
     };
 },
 mounted(){
@@ -63,9 +71,14 @@ methods:{
                 }
             });
             this.categories = response.data;
+            this.filteredCategories = this.categories;
         } catch(error){
             console.error(error);
         }
+    },
+    filterCategories(){
+        const query = this.searchQuery.toLowerCase();
+        this.filteredCategories = this.categories.filter(category => category.name.toLowerCase().includes(query))
     },
     async addCategory(){
         try{

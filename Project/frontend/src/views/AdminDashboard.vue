@@ -1,6 +1,6 @@
 <template>
   <h2>This is the admin page</h2>
-
+  <button @click="exportcsv">Download Report</button>
   <div>
     <h2>Manager Managing</h2>
     <table v-if="pendingManagers.length > 0">
@@ -98,6 +98,28 @@ export default {
       this.confirmationTitle = '';
       this.confirmationMessage = '';
       this.pendingManagerToHandle = null;
+    },
+    exportcsv(){
+      const accessToken = localStorage.getItem('token');
+      const headers = {
+        Authorization: `Bearer ${accessToken}`,
+      };
+      axios.post('http://127.0.0.1:5000/exportcsv/1',{},{headers,
+        responseType:'blob'
+      })
+      .then(response => {
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const downloadLink = document.createElement('a');
+        downloadLink.href=url;
+        downloadLink.setAttribute('download','category_report.csv');
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      }
+      )
+      .catch(error => {
+        console.error(error);
+      });
     }
   }
 };
